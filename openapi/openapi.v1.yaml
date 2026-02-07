@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: A2UI API
+  version: v1
+paths:
+  /api/v1/healthz:
+    get:
+      responses:
+        '200':
+          description: ok
+  /api/v1/workspaces:
+    post:
+      responses:
+        '200':
+          description: created
+  /api/v1/sessions:
+    post:
+      responses:
+        '200':
+          description: created
+  /api/v1/agent/run:
+    post:
+      responses:
+        '200':
+          description: ok

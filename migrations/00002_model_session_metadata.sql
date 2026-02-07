@@ -1,0 +1,7 @@
+-- +goose Up
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS metadata TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE models ADD COLUMN IF NOT EXISTS metadata TEXT NOT NULL DEFAULT '{}';
+
+-- +goose Down
+ALTER TABLE models DROP COLUMN IF EXISTS metadata;
+ALTER TABLE sessions DROP COLUMN IF EXISTS metadata;
