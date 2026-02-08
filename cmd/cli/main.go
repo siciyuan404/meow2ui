@@ -65,25 +65,25 @@ func main() {
 		}
 		fmt.Printf("rollback complete (steps=%d)\n", steps)
 	case "db:backup":
-		fmt.Println("backup started")
+		fmt.Println("db:backup is not yet implemented. Planned for v1.1.")
 	case "db:restore":
 		if len(args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: db:restore <backup-id>")
 			os.Exit(1)
 		}
-		fmt.Printf("restore requested for backup=%s\n", args[2])
+		fmt.Printf("db:restore is not yet implemented. Planned for v1.1. (backup=%s)\n", args[2])
 	case "data:export":
 		if len(args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: data:export <workspace-id>")
 			os.Exit(1)
 		}
-		fmt.Printf("export requested workspace=%s\n", args[2])
+		fmt.Printf("data:export is not yet implemented. Planned for v1.1. (workspace=%s)\n", args[2])
 	case "data:import":
 		if len(args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: data:import <bundle-path>")
 			os.Exit(1)
 		}
-		fmt.Printf("import requested bundle=%s\n", args[2])
+		fmt.Printf("data:import is not yet implemented. Planned for v1.1. (bundle=%s)\n", args[2])
 	case "workspace:create", "session:create", "agent:run":
 		app, err := bootstrap.New(ctx)
 		if err != nil {
@@ -142,10 +142,10 @@ func usage() {
 	fmt.Println("  db:create")
 	fmt.Println("  db:migrate")
 	fmt.Println("  db:rollback [steps]")
-	fmt.Println("  db:backup")
-	fmt.Println("  db:restore <backup-id>")
-	fmt.Println("  data:export <workspace-id>")
-	fmt.Println("  data:import <bundle-path>")
+	fmt.Println("  db:backup                        [NOT IMPLEMENTED]")
+	fmt.Println("  db:restore <backup-id>           [NOT IMPLEMENTED]")
+	fmt.Println("  data:export <workspace-id>       [NOT IMPLEMENTED]")
+	fmt.Println("  data:import <bundle-path>        [NOT IMPLEMENTED]")
 	fmt.Println("  workspace:create <name> <root>")
 	fmt.Println("  session:create <workspace-id> <title>")
 	fmt.Println("  agent:run <session-id> <prompt>")

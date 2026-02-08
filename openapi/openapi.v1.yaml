@@ -1,25 +1,1011 @@
 openapi: 3.0.3
 info:
   title: A2UI API
-  version: v1
+  version: v1.0.0
+  description: AI-powered UI generation platform API
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      required: [code, message]
+
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        root:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+        workspaceId:
+          type: string
+        title:
+          type: string
+
+    SchemaVersion:
+      type: object
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        schema:
+          type: string
+
+    MediaInput:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [image, audio]
+        ref:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+
+    AgentRunOutput:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        versionId:
+          type: string
+        schema:
+          type: string
+        steps:
+          type: array
+          items:
+            type: object
+
+    FlowDefinition:
+      type: object
+      additionalProperties: true
+
+    FlowTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    FlowVersion:
+      type: object
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+
+    DebugRun:
+      type: object
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        status:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+
+    DebugRunDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        steps:
+          type: array
+          items:
+            type: object
+        latency:
+          type: number
+        tokenUsage:
+          type: object
+
+    DebugRunCost:
+      type: object
+      properties:
+        runId:
+          type: string
+        totalCost:
+          type: number
+        currency:
+          type: string
+        breakdown:
+          type: array
+          items:
+            type: object
+
+    MarketplaceTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        schema:
+          type: string
+        owner:
+          type: string
+        status:
+          type: string
+
+    Rating:
+      type: object
+      properties:
+        templateId:
+          type: string
+        userId:
+          type: string
+        score:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+
 paths:
-  /api/v1/healthz:
+  # --- Health & Ops ---
+  /healthz:
     get:
+      tags: [Ops]
+      summary: Health check
+      operationId: healthz
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  version:
+                    type: string
+
+  /readyz:
+    get:
+      tags: [Ops]
+      summary: Readiness check (includes DB connectivity)
+      operationId: readyz
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ready:
+                    type: boolean
+                  db:
+                    type: boolean
+                  version:
+                    type: string
+        '503':
+          description: Service not ready
+
+  /version:
+    get:
+      tags: [Ops]
+      summary: Build version
+      operationId: getVersion
+      responses:
+        '200':
+          description: Version info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+
+  /api/v1/ops/health:
+    get:
+      tags: [Ops]
+      summary: Ops health endpoint
+      operationId: opsHealth
       responses:
         '200':
           description: ok
-  /api/v1/workspaces:
-    post:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  /api/v1/ops/errors:
+    get:
+      tags: [Ops]
+      summary: Recent errors
+      operationId: opsErrors
       responses:
         '200':
-          description: created
-  /api/v1/sessions:
-    post:
+          description: Error list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: array
+                    items:
+                      type: object
+
+  /api/v1/ops/capacity:
+    get:
+      tags: [Ops]
+      summary: Capacity metrics
+      operationId: opsCapacity
       responses:
         '200':
-          description: created
-  /api/v1/agent/run:
-    post:
+          description: Capacity info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  capacity:
+                    type: object
+                    properties:
+                      qps:
+                        type: number
+                      p95:
+                        type: number
+
+  /api/v1/ops/alerts:
+    get:
+      tags: [Ops]
+      summary: Active alerts
+      operationId: opsAlerts
       responses:
         '200':
-          description: ok
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      type: object
+
+  # --- Workspace & Session ---
+  /workspace/create:
+    post:
+      tags: [Workspace]
+      summary: Create a workspace
+      operationId: createWorkspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                root:
+                  type: string
+              required: [name, root]
+      responses:
+        '200':
+          description: Workspace created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+
+  /session/create:
+    post:
+      tags: [Session]
+      summary: Create a session
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                workspaceId:
+                  type: string
+                title:
+                  type: string
+                themeId:
+                  type: string
+              required: [workspaceId, title]
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    $ref: '#/components/schemas/Session'
+                  version:
+                    $ref: '#/components/schemas/SchemaVersion'
+
+  # --- Agent ---
+  /agent/run:
+    post:
+      tags: [Agent]
+      summary: Run AI agent to generate or patch UI schema
+      operationId: agentRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                prompt:
+                  type: string
+                onlyArea:
+                  type: string
+                media:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/MediaInput'
+              required: [sessionId, prompt]
+      responses:
+        '200':
+          description: Agent run result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRunOutput'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # --- Flow Orchestration ---
+  /api/v1/flows:
+    get:
+      tags: [Flow]
+      summary: List flow templates
+      operationId: listFlowTemplates
+      responses:
+        '200':
+          description: Flow template list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FlowTemplate'
+    post:
+      tags: [Flow]
+      summary: Create a flow template
+      operationId: createFlowTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                version:
+                  type: string
+                definition:
+                  $ref: '#/components/schemas/FlowDefinition'
+              required: [name, version, definition]
+      responses:
+        '200':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  template:
+                    $ref: '#/components/schemas/FlowTemplate'
+                  version:
+                    $ref: '#/components/schemas/FlowVersion'
+
+  /api/v1/flows/bind-session:
+    post:
+      tags: [Flow]
+      summary: Bind a flow template to a session
+      operationId: bindFlowSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                templateId:
+                  type: string
+                version:
+                  type: string
+              required: [sessionId, templateId, version]
+      responses:
+        '200':
+          description: Bound successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  # --- Debugger ---
+  /api/v1/debug/runs:
+    get:
+      tags: [Debugger]
+      summary: List debug runs
+      operationId: listDebugRuns
+      parameters:
+        - name: session_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Debug run list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DebugRun'
+
+  /api/v1/debug/runs/{runId}:
+    get:
+      tags: [Debugger]
+      summary: Get debug run detail
+      operationId: getDebugRunDetail
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Run detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DebugRunDetail'
+
+  /api/v1/debug/runs/{runId}/cost:
+    get:
+      tags: [Debugger]
+      summary: Get debug run cost breakdown
+      operationId: getDebugRunCost
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cost breakdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DebugRunCost'
+
+  # --- Marketplace ---
+  /api/v1/marketplace/templates:
+    get:
+      tags: [Marketplace]
+      summary: Search marketplace templates
+      operationId: searchMarketplaceTemplates
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Template list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MarketplaceTemplate'
+    post:
+      tags: [Marketplace]
+      summary: Save a template from session to marketplace
+      operationId: saveMarketplaceTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                category:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                schema:
+                  type: string
+                theme:
+                  type: string
+                owner:
+                  type: string
+                sessionId:
+                  type: string
+                versionId:
+                  type: string
+              required: [name, category, schema, owner, sessionId, versionId]
+      responses:
+        '200':
+          description: Template saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceTemplate'
+
+  /api/v1/marketplace/review:
+    post:
+      tags: [Marketplace]
+      summary: Submit or review a marketplace template
+      operationId: reviewMarketplaceTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateId:
+                  type: string
+                decision:
+                  type: string
+                  enum: [submit, approve, reject]
+                note:
+                  type: string
+              required: [templateId, decision]
+      responses:
+        '200':
+          description: Review processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  /api/v1/marketplace/ratings:
+    post:
+      tags: [Marketplace]
+      summary: Add rating or flag a comment
+      operationId: addMarketplaceRating
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateId:
+                  type: string
+                userId:
+                  type: string
+                score:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                flag:
+                  type: boolean
+              required: [templateId, userId]
+      responses:
+        '200':
+          description: Rating added or comment flagged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+
+  /api/v1/marketplace/apply:
+    post:
+      tags: [Marketplace]
+      summary: Apply a marketplace template to a session
+      operationId: applyMarketplaceTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateId:
+                  type: string
+                sessionId:
+                  type: string
+              required: [templateId, sessionId]
+      responses:
+        '200':
+          description: Template applied
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # --- Cost Governance ---
+  /api/v1/cost/summary:
+    get:
+      tags: [Cost]
+      summary: Cost summary
+      operationId: getCostSummary
+      responses:
+        '200':
+          description: Cost summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                  currency:
+                    type: string
+
+  /api/v1/cost/usage:
+    get:
+      tags: [Cost]
+      summary: Cost usage details
+      operationId: getCostUsage
+      responses:
+        '200':
+          description: Usage items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+
+  /api/v1/cost/budgets:
+    get:
+      tags: [Cost]
+      summary: List budgets
+      operationId: listBudgets
+      responses:
+        '200':
+          description: Budget list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  budgets:
+                    type: array
+                    items:
+                      type: object
+    post:
+      tags: [Cost]
+      summary: Create a budget
+      operationId: createBudget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Budget created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  # --- Evaluation & Benchmark ---
+  /api/v1/evaluation/benchmark-runs:
+    post:
+      tags: [Evaluation]
+      summary: Start a benchmark run
+      operationId: createBenchmarkRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Benchmark run started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runId:
+                    type: string
+
+  /api/v1/evaluation/benchmark-runs/{runId}:
+    get:
+      tags: [Evaluation]
+      summary: Get benchmark run status
+      operationId: getBenchmarkRun
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Benchmark run status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runId:
+                    type: string
+                  status:
+                    type: string
+
+  /api/v1/evaluation/benchmark-runs/{runId}/results:
+    get:
+      tags: [Evaluation]
+      summary: Get benchmark run results
+      operationId: getBenchmarkRunResults
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Benchmark results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+
+  # --- Enterprise ---
+  /api/v1/orgs:
+    post:
+      tags: [Enterprise]
+      summary: Create an organization
+      operationId: createOrg
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Org created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+
+  /api/v1/projects:
+    post:
+      tags: [Enterprise]
+      summary: Create a project
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+
+  /api/v1/projects/{projectId}/members:
+    post:
+      tags: [Enterprise]
+      summary: Add a member to a project
+      operationId: addProjectMember
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  /api/v1/audit/exports:
+    post:
+      tags: [Enterprise]
+      summary: Create an audit export
+      operationId: createAuditExport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Export created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+
+  /api/v1/audit/exports/{exportId}:
+    get:
+      tags: [Enterprise]
+      summary: Get audit export status
+      operationId: getAuditExport
+      parameters:
+        - name: exportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Export status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+
+  /api/v1/enterprise/sso/config:
+    get:
+      tags: [Enterprise]
+      summary: SSO configuration (not implemented)
+      operationId: getSsoConfig
+      responses:
+        '501':
+          description: Not implemented
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+
+  /api/v1/enterprise/scim/sync:
+    post:
+      tags: [Enterprise]
+      summary: SCIM sync (not implemented)
+      operationId: scimSync
+      responses:
+        '501':
+          description: Not implemented
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string

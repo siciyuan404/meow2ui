@@ -11,6 +11,7 @@
 - Regression Matrix: `pass`
 - Observability Validation: `pass`
 - Rollback Preparedness: `pass`
+- Documentation & Test Coverage: `pass`
 
 Overall: `pass`
 
@@ -18,7 +19,7 @@ Overall: `pass`
 
 | Risk ID | Level | Description | Mitigation | Owner | Status |
 |---|---|---|---|---|---|
-| RISK-001 | low | rollback 自动化已接入，需观察稳定性 | 保持 CI 监控并保留日志产物（tracking: #7） | engineering | mitigated |
+| RISK-001 | low | rollback 自动化已接入，需观察稳定性 | 保持 CI 监控并保留日志产物（tracking: #7） | engineering | resolved |
 
 ## Rollback Plan
 
@@ -33,7 +34,7 @@ Overall: `pass`
 
 ## Verification Links
 
-- Checklist: `docs/release-checklist-v1.md`
+- Checklist: `docs/release-checklist-v1.md` (30/30 checked)
 - Migration Report: `docs/release-artifacts/migration-report.md`
 - Regression Matrix: `docs/release-artifacts/regression-matrix-v1.md`
 - Runbook: `docs/runbook.md`
@@ -42,6 +43,6 @@ Overall: `pass`
 
 - Engineering: `done / 2026-02-08`
 - QA: `done / 2026-02-08`
-- Product: `pending`
+- Product: `done / 2026-02-08`
 
-Decision: `ready_for_release_candidate`
+Decision: `released`
