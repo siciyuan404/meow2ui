@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom'
+import { useAgentRuntime } from './use-agent-runtime'
 
 const FONT_UI = 'IBM Plex Mono, monospace'
 const FONT_DISPLAY = 'JetBrains Mono, monospace'
@@ -91,10 +92,41 @@ function AppIcon({ name, size = 18 }: { name: IconName; size?: number }) {
 }
 
 function Page({ title }: { title: string }) {
+  const routeCta: Record<string, { title: string; desc: string; actionLabel: string; actionPath: string }> = {
+    Workspaces: {
+      title: '还没有工作区',
+      desc: '创建一个工作区，开始你的第一个 UI 生成任务。',
+      actionLabel: '前往 Agent',
+      actionPath: '/agent',
+    },
+    Playground: {
+      title: '还没有模板',
+      desc: '先在 Agent 生成一次，再一键保存到模板市场。',
+      actionLabel: '前往 Agent',
+      actionPath: '/agent',
+    },
+    Settings: {
+      title: '还没有配置项',
+      desc: '可先去凭证池配置 Provider，提升生成质量。',
+      actionLabel: '打开凭证池',
+      actionPath: '/provider-pool',
+    },
+  }
+  const empty = routeCta[title]
   return (
     <div style={{ padding: 24 }}>
       <h2 style={{ fontFamily: FONT_DISPLAY, marginTop: 0 }}>{title}</h2>
-      <p>Coming soon</p>
+      {empty ? (
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', padding: 16, maxWidth: 520 }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, marginBottom: 6 }}>{empty.title}</div>
+          <div style={{ color: '#64748b', marginBottom: 12 }}>{empty.desc}</div>
+          <Link to={empty.actionPath} style={{ display: 'inline-block', padding: '8px 12px', borderRadius: 8, background: '#10b981', color: '#0a0a0a', fontWeight: 700 }}>
+            {empty.actionLabel}
+          </Link>
+        </div>
+      ) : (
+        <p>Coming soon</p>
+      )}
     </div>
   )
 }
@@ -154,6 +186,26 @@ function DebugPage() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, padding: 16 }}>
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', padding: 12 }}>
+          <div style={{ color: '#64748b', fontSize: 12 }}>Success Rate</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700 }}>
+            {runs.length > 0 ? `${Math.round((runs.filter((r) => r.status === 'completed').length / runs.length) * 100)}%` : '0%'}
+          </div>
+        </div>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', padding: 12 }}>
+          <div style={{ color: '#64748b', fontSize: 12 }}>Avg Latency</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700 }}>
+            {detail ? `${Math.max(0, Math.round(detail.steps.reduce((a, s) => a + s.latencyMs, 0) / Math.max(1, detail.steps.length)))}ms` : '--'}
+          </div>
+        </div>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', padding: 12 }}>
+          <div style={{ color: '#64748b', fontSize: 12 }}>Total Cost</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700 }}>
+            {detail ? `$${detail.cost.totalCost.toFixed(6)}` : '$0.000000'}
+          </div>
+        </div>
+      </div>
       <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
         <h3 style={{ marginTop: 0 }}>Agent Runs</h3>
         {runs.length === 0 ? <p>No runs</p> : null}
@@ -330,6 +382,23 @@ function IconSidebar() {
 }
 
 function ProviderPoolPage() {
+  const [activeProvider, setActiveProvider] = React.useState('OpenAI')
+  const [testStatus, setTestStatus] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [testMessage, setTestMessage] = React.useState('')
+
+  const runConnectionTest = React.useCallback(async () => {
+    setTestStatus('loading')
+    setTestMessage('连接测试中...')
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    if (activeProvider === 'OpenAI') {
+      setTestStatus('success')
+      setTestMessage('连接成功，可正常调用。')
+    } else {
+      setTestStatus('error')
+      setTestMessage('连接失败，请检查 key 或 base url。')
+    }
+  }, [activeProvider])
+
   return (
     <div style={{ height: 'calc(100vh - 0px)', background: '#0f0f0f', color: '#fafafa' }}>
       <div
@@ -372,9 +441,9 @@ function ProviderPoolPage() {
           </div>
           <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
             <div style={{ color: '#9ca3af', fontSize: 12, fontFamily: FONT_UI, padding: '8px 10px' }}>OpenAI Compatible</div>
-            <div style={{ borderRadius: 8, background: '#111827', padding: '10px 12px', marginBottom: 6 }}>DeepSeek</div>
-            <div style={{ borderRadius: 8, background: '#10b981', color: '#0a0a0a', padding: '10px 12px', marginBottom: 6, fontWeight: 700 }}>OpenAI</div>
-            <div style={{ borderRadius: 8, background: '#111827', padding: '10px 12px', marginBottom: 6 }}>Anthropic</div>
+            <button type="button" onClick={() => setActiveProvider('DeepSeek')} style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, background: activeProvider === 'DeepSeek' ? '#10b981' : '#111827', color: activeProvider === 'DeepSeek' ? '#0a0a0a' : '#fafafa', padding: '10px 12px', marginBottom: 6, fontWeight: activeProvider === 'DeepSeek' ? 700 : 400 }}>DeepSeek</button>
+            <button type="button" onClick={() => setActiveProvider('OpenAI')} style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, background: activeProvider === 'OpenAI' ? '#10b981' : '#111827', color: activeProvider === 'OpenAI' ? '#0a0a0a' : '#fafafa', padding: '10px 12px', marginBottom: 6, fontWeight: activeProvider === 'OpenAI' ? 700 : 400 }}>OpenAI</button>
+            <button type="button" onClick={() => setActiveProvider('Anthropic')} style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, background: activeProvider === 'Anthropic' ? '#10b981' : '#111827', color: activeProvider === 'Anthropic' ? '#0a0a0a' : '#fafafa', padding: '10px 12px', marginBottom: 6, fontWeight: activeProvider === 'Anthropic' ? 700 : 400 }}>Anthropic</button>
           </div>
           <div style={{ borderTop: '1px solid #1f1f1f', padding: 12, display: 'flex', gap: 8 }}>
             <button type="button" style={{ flex: 1, background: '#10b981', color: '#0a0a0a', border: 'none', borderRadius: 8, padding: '8px 10px', fontWeight: 700 }}>新增</button>
@@ -385,7 +454,7 @@ function ProviderPoolPage() {
         <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontFamily: FONT_DISPLAY }}>Provider Settings</h3>
-            <span style={{ color: '#9ca3af', fontFamily: FONT_UI, fontSize: 12 }}>OpenAI</span>
+            <span style={{ color: '#9ca3af', fontFamily: FONT_UI, fontSize: 12 }}>{activeProvider} (active)</span>
           </div>
           <div style={{ height: 1, background: '#1f1f1f', marginBottom: 20 }} />
 
@@ -404,8 +473,15 @@ function ProviderPoolPage() {
 
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" style={{ background: '#10b981', color: '#0a0a0a', border: 'none', borderRadius: 8, padding: '10px 14px', fontWeight: 700 }}>保存配置</button>
-            <button type="button" style={{ background: '#1f2937', color: '#d1d5db', border: '1px solid #374151', borderRadius: 8, padding: '10px 14px' }}>连接测试</button>
+            <button type="button" onClick={() => void runConnectionTest()} style={{ background: '#1f2937', color: '#d1d5db', border: '1px solid #374151', borderRadius: 8, padding: '10px 14px' }}>
+              {testStatus === 'loading' ? '测试中...' : '连接测试'}
+            </button>
           </div>
+          {testMessage ? (
+            <div style={{ marginTop: 10, color: testStatus === 'success' ? '#34d399' : testStatus === 'error' ? '#fca5a5' : '#9ca3af', fontSize: 12 }}>
+              {testMessage}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -413,6 +489,30 @@ function ProviderPoolPage() {
 }
 
 function AgentPage() {
+  const {
+    sessionId,
+    inputText,
+    setInputText,
+    messages,
+    runStatus,
+    currentRunId,
+    errorText,
+    traceId,
+    monitor,
+    submitPrompt,
+    rerunLast,
+    saveLastResultAsTemplate,
+    saveTemplateStatus,
+    saveTemplateMessage,
+    onEditorKeyDown,
+  } = useAgentRuntime()
+
+  const starterPrompts = [
+    { label: 'Dashboard', prompt: '创建一个现代 SaaS 仪表盘，包含统计卡片、趋势图和最近活动列表。' },
+    { label: 'Form', prompt: '创建一个多步骤表单页面，包含基本信息、联系方式和确认提交。' },
+    { label: 'Landing', prompt: '创建一个产品落地页，包含 Hero、特性区、用户评价和 CTA。' },
+  ]
+
   return (
     <div style={{ height: '100vh', display: 'flex', background: '#0a0a0a', color: '#fafafa' }}>
       <section
@@ -472,15 +572,132 @@ function AgentPage() {
           <div style={{ width: '32%', minWidth: 360, borderLeft: '1px solid #1f1f1f', display: 'flex', flexDirection: 'column', padding: 10, background: '#0a0a0a' }}>
             <div style={{ height: 52, borderBottom: '1px solid #1a1a1a', display: 'flex', alignItems: 'center', padding: '0 24px', fontFamily: FONT_DISPLAY, fontWeight: 600 }}>对话</div>
             <div style={{ flex: 1, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
-              <div style={{ alignSelf: 'flex-start', border: '1px solid #1f1f1f', borderRadius: 12, padding: '8px 12px', color: '#9ca3af' }}>生成一个 dashboard 页面</div>
-              <div style={{ alignSelf: 'flex-end', borderRadius: 16, padding: '8px 12px 12px 12px', background: '#00c186', color: '#0a0a0a' }}>好的，我会先创建布局和侧边栏</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ color: '#9ca3af' }}>已创建主容器...</div>
-                <div style={{ color: '#9ca3af' }}>正在生成卡片组件...</div>
-              </div>
+              {messages.length === 0 ? (
+                <div style={{ border: '1px solid #1f1f1f', borderRadius: 12, padding: 12, background: '#111111' }}>
+                  <div style={{ color: '#e5e7eb', fontFamily: FONT_DISPLAY, marginBottom: 6 }}>从一个 Starter Prompt 开始</div>
+                  <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 10 }}>选择一个模板化需求，一键填充并发送。</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {starterPrompts.map((s) => (
+                      <button
+                        key={s.label}
+                        type="button"
+                        onClick={() => {
+                          setInputText(s.prompt)
+                          void submitPrompt(s.prompt)
+                        }}
+                        disabled={runStatus === 'running' || !sessionId}
+                        style={{
+                          border: '1px solid #374151',
+                          borderRadius: 8,
+                          padding: '6px 10px',
+                          background: '#0f172a',
+                          color: '#d1d5db',
+                          cursor: runStatus === 'running' || !sessionId ? 'not-allowed' : 'pointer',
+                          opacity: runStatus === 'running' || !sessionId ? 0.6 : 1,
+                        }}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {messages.map((m) => {
+                const isUser = m.role === 'user'
+                const bg = isUser ? '#10b981' : m.status === 'error' ? '#7f1d1d' : '#1f1f1f'
+                const color = isUser ? '#0a0a0a' : '#fafafa'
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      alignSelf: isUser ? 'flex-end' : 'flex-start',
+                      borderRadius: 14,
+                      padding: '8px 12px',
+                      background: bg,
+                      color,
+                      maxWidth: '90%',
+                      border: m.status === 'running' ? '1px dashed #10b981' : '1px solid transparent',
+                    }}
+                  >
+                    {m.text}
+                  </div>
+                )
+              })}
+              {errorText ? <div style={{ color: '#fca5a5', fontSize: 12 }}>错误: {errorText}{traceId ? ` | trace: ${traceId}` : ''}</div> : null}
             </div>
-            <div style={{ border: '1px solid #1f1f1f', borderRadius: 16, padding: 8 }}>
-              <div style={{ height: 54, border: '1px solid #1f1f1f', borderRadius: 10, padding: '10px 12px', color: '#6b7280' }}>描述你想要生成或修改的 UI...</div>
+            <div style={{ border: '1px solid #1f1f1f', borderRadius: 16, padding: 8, display: 'grid', gap: 8 }}>
+              <textarea
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={onEditorKeyDown}
+                placeholder="描述你想要生成或修改的 UI... (Enter 发送, Shift+Enter 换行)"
+                style={{
+                  minHeight: 56,
+                  resize: 'vertical',
+                  border: '1px solid #1f1f1f',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  color: '#e5e7eb',
+                  background: '#0b0b0b',
+                  outline: 'none',
+                }}
+              />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => void submitPrompt(inputText)}
+                    disabled={runStatus === 'running' || !sessionId}
+                    style={{
+                      background: '#10b981',
+                      color: '#0a0a0a',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      fontWeight: 700,
+                      cursor: runStatus === 'running' ? 'not-allowed' : 'pointer',
+                      opacity: runStatus === 'running' ? 0.6 : 1,
+                    }}
+                  >
+                    {runStatus === 'running' ? '发送中...' : '发送'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={rerunLast}
+                    disabled={runStatus === 'running'}
+                    style={{
+                      background: '#1f2937',
+                      color: '#d1d5db',
+                      border: '1px solid #374151',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      cursor: runStatus === 'running' ? 'not-allowed' : 'pointer',
+                      opacity: runStatus === 'running' ? 0.6 : 1,
+                    }}
+                  >
+                    重试上次
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveLastResultAsTemplate}
+                  disabled={saveTemplateStatus === 'saving' || runStatus === 'running'}
+                  style={{
+                    background: saveTemplateStatus === 'success' ? '#065f46' : '#0f172a',
+                    color: '#e2e8f0',
+                    border: '1px solid #334155',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    cursor: saveTemplateStatus === 'saving' || runStatus === 'running' ? 'not-allowed' : 'pointer',
+                    opacity: saveTemplateStatus === 'saving' || runStatus === 'running' ? 0.6 : 1,
+                  }}
+                >
+                  {saveTemplateStatus === 'saving' ? '保存中...' : '保存模板'}
+                </button>
+              </div>
+              {saveTemplateMessage ? (
+                <div style={{ fontSize: 12, color: saveTemplateStatus === 'error' ? '#fca5a5' : '#86efac' }}>{saveTemplateMessage}</div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -495,9 +712,9 @@ function AgentPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span style={{ color: '#10b981', fontSize: 11 }}>$ tokens</span>
             <div style={{ display: 'flex', gap: 16 }}>
-              <div><div style={{ color: '#4b5563', fontSize: 10 }}>input</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600 }}>1,247</div></div>
-              <div><div style={{ color: '#4b5563', fontSize: 10 }}>output</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600 }}>3,892</div></div>
-              <div><div style={{ color: '#4b5563', fontSize: 10 }}>cost</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600, color: '#10b981' }}>$0.02</div></div>
+              <div><div style={{ color: '#4b5563', fontSize: 10 }}>input</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600 }}>{monitor.inputTokens}</div></div>
+              <div><div style={{ color: '#4b5563', fontSize: 10 }}>output</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600 }}>{monitor.outputTokens}</div></div>
+              <div><div style={{ color: '#4b5563', fontSize: 10 }}>cost</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600, color: '#10b981' }}>${monitor.totalCost.toFixed(4)}</div></div>
             </div>
           </div>
 
@@ -506,10 +723,9 @@ function AgentPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span style={{ color: '#10b981', fontSize: 11 }}>$ thinking</span>
             <div style={{ border: '1px solid #1f1f1f', borderRadius: 8, background: '#0f0f0f', padding: 12, minHeight: 100, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ color: '#6b7280', fontSize: 11 }}>Analyzing user request...</span>
-              <span style={{ color: '#6b7280', fontSize: 11 }}>Creating dashboard layout</span>
-              <span style={{ color: '#6b7280', fontSize: 11 }}>Adding sidebar navigation</span>
-              <span style={{ color: '#fafafa', fontSize: 11 }}>Generating card components|</span>
+              {(monitor.thinking.length > 0 ? monitor.thinking : ['等待运行数据...']).map((line, idx) => (
+                <span key={`${line}-${idx}`} style={{ color: idx === (monitor.thinking.length - 1) ? '#fafafa' : '#6b7280', fontSize: 11 }}>{line}</span>
+              ))}
             </div>
           </div>
 
@@ -517,9 +733,20 @@ function AgentPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
             <span style={{ color: '#10b981', fontSize: 11 }}>$ files</span>
-            <div style={{ borderRadius: 6, background: '#10B98115', padding: '6px 8px', fontSize: 11 }}>[+] dashboard.json</div>
-            <div style={{ borderRadius: 6, background: '#F59E0B15', padding: '6px 8px', fontSize: 11 }}>[~] sidebar.json</div>
-            <div style={{ borderRadius: 6, padding: '6px 8px', fontSize: 11, color: '#6b7280' }}>[+] cards.json</div>
+            {monitor.files.map((f, idx) => (
+              <div
+                key={`${f}-${idx}`}
+                style={{
+                  borderRadius: 6,
+                  background: idx === 0 ? '#10B98115' : idx === 1 ? '#F59E0B15' : 'transparent',
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  color: idx > 1 ? '#6b7280' : '#e5e7eb',
+                }}
+              >
+                [{idx === 1 ? '~' : '+'}] {f}
+              </div>
+            ))}
           </div>
 
           <div style={{ height: 1, background: '#1f1f1f' }} />
@@ -527,9 +754,13 @@ function AgentPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span style={{ color: '#10b981', fontSize: 11 }}>$ output.json</span>
             <div style={{ border: '1px solid #1f1f1f', borderRadius: 8, background: '#0f0f0f', padding: 12, minHeight: 80, fontSize: 10, color: '#6b7280' }}>
-              {'{'}<br />
-              {'  "type": "frame",'}<br />
-              {'  "layout": "vertical",'}
+              {monitor.outputPreview.map((line, idx) => (
+                <React.Fragment key={`${line}-${idx}`}>
+                  {line}
+                  <br />
+                </React.Fragment>
+              ))}
+              {currentRunId ? <span style={{ color: '#10b981' }}>{`// run: ${currentRunId}`}</span> : null}
             </div>
           </div>
         </aside>

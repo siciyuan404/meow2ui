@@ -18,6 +18,9 @@
 | QUEUE-201 | #2 多模态支持 | `.specs/issue-002-multimodal-support/tasks.md` | low | completed | QUEUE-102 |
 | QUEUE-202 | #4 公开 Benchmark 对比 | `.specs/issue-004-public-benchmark/tasks.md` | low | completed | QUEUE-101, QUEUE-102 |
 | QUEUE-203 | #6 模板市场生态建设 | `.specs/issue-006-template-marketplace-ecosystem/tasks.md` | low | completed | QUEUE-103 |
+| QUEUE-301 | #8 Agent 页面真实数据联动 | `.specs/issue-008-agent-live-data-linkage/tasks.md` | high | pending | QUEUE-203 |
+| QUEUE-302 | #9 空状态引导与 Starter Prompts | `.specs/issue-009-guided-empty-states-and-starter-prompts/tasks.md` | high | completed | QUEUE-301 |
+| QUEUE-303 | #10 一键保存模板 + Rerun + Provider 反馈 | `.specs/issue-010-save-template-rerun-provider-feedback/tasks.md` | high | completed | QUEUE-302 |
 
 ## Notes
 
@@ -33,9 +36,18 @@
 - `QUEUE-201`: `requirements.md` / `design.md` / `tasks.md` 已完成（low）。
 - `QUEUE-202`: `requirements.md` / `design.md` / `tasks.md` 已完成（low）。
 - `QUEUE-203`: `requirements.md` / `design.md` / `tasks.md` 已完成（low）。
+- `QUEUE-301`: `requirements.md` / `design.md` / `tasks.md` 已完成（high）。
+- `QUEUE-302`: `requirements.md` / `design.md` / `tasks.md` 已完成（high）。
+- `QUEUE-303`: `requirements.md` / `design.md` / `tasks.md` 已完成（high）。
 
 ## Next Window (Low Priority)
 
 1. `QUEUE-201` 多模态支持
 2. `QUEUE-202` 公开 Benchmark 对比
 3. `QUEUE-203` 模板市场生态建设
+
+## UX Next Queue
+
+1. `QUEUE-301` Agent 页面真实数据联动（issue #8）
+2. `QUEUE-302` 空状态引导与 Starter Prompts（issue #9）
+3. `QUEUE-303` 一键保存模板 + Rerun + Provider 反馈（issue #10）
