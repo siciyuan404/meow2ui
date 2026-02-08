@@ -105,6 +105,20 @@ func (s *Service) BuildContext(ctx context.Context, sessionID string, task map[s
 	if err != nil {
 		return ContextBundle{}, err
 	}
+	if mediaRaw, ok := task["media"]; ok {
+		if mediaList, ok := mediaRaw.([]domain.MultimodalInput); ok {
+			arr := make([]map[string]any, 0, len(mediaList))
+			for _, m := range mediaList {
+				arr = append(arr, map[string]any{
+					"type":     m.Type,
+					"ref":      m.Ref,
+					"metadata": m.Metadata,
+				})
+			}
+			task["media"] = arr
+		}
+	}
+
 	return ContextBundle{
 		SystemRules: map[string]any{
 			"output_mode":           "patch_preferred",

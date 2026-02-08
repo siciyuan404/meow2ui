@@ -16,9 +16,11 @@ import (
 type TaskType string
 
 const (
-	TaskPlan   TaskType = "plan"
-	TaskEmit   TaskType = "emit"
-	TaskRepair TaskType = "repair"
+	TaskPlan      TaskType = "plan"
+	TaskPlanImage TaskType = "plan_image"
+	TaskPlanAudio TaskType = "plan_audio"
+	TaskEmit      TaskType = "emit"
+	TaskRepair    TaskType = "repair"
 )
 
 type GenerateRequest struct {
@@ -115,6 +117,10 @@ func (r *Router) Candidates(ctx context.Context, task TaskType) ([]Candidate, er
 
 func capabilityForTask(task TaskType) string {
 	switch task {
+	case TaskPlanImage:
+		return "image"
+	case TaskPlanAudio:
+		return "audio"
 	case TaskPlan, TaskEmit, TaskRepair:
 		return "text"
 	default:

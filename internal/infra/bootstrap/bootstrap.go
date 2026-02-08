@@ -12,6 +12,8 @@ import (
 	"github.com/example/a2ui-go-agent-platform/pkg/agent"
 	"github.com/example/a2ui-go-agent-platform/pkg/domain"
 	"github.com/example/a2ui-go-agent-platform/pkg/events"
+	"github.com/example/a2ui-go-agent-platform/pkg/flow"
+	flowruntime "github.com/example/a2ui-go-agent-platform/pkg/flow/runtime"
 	"github.com/example/a2ui-go-agent-platform/pkg/guardrail"
 	"github.com/example/a2ui-go-agent-platform/pkg/playground"
 	"github.com/example/a2ui-go-agent-platform/pkg/playground/retrieval"
@@ -35,6 +37,7 @@ type App struct {
 	Playground *playground.Service
 	Events     *events.Service
 	Telemetry  *telemetry.Service
+	Flow       *flow.Service
 	Agent      *agent.Service
 }
 
@@ -55,8 +58,10 @@ func New(ctx context.Context) (*App, error) {
 	playSvc := playground.NewService(st.Playground())
 	eventSvc := events.NewService(st.Event())
 	telemetrySvc := telemetry.NewService()
+	flowSvc := flow.NewService(st.Flow())
+	flowRuntimeSvc := flowruntime.NewService(providerSvc)
 	retriever := retrieval.NewKeywordRetriever(st.Playground())
-	agentSvc := agent.NewService(providerSvc, a2uiSvc, sessionSvc, eventSvc, guardSvc, telemetrySvc, st.Version(), retriever)
+	agentSvc := agent.NewService(providerSvc, a2uiSvc, sessionSvc, eventSvc, guardSvc, telemetrySvc, st.Version(), retriever, flowSvc, flowRuntimeSvc)
 
 	providers, err := st.Provider().ListProviders(ctx)
 	if err != nil {
@@ -68,6 +73,12 @@ func New(ctx context.Context) (*App, error) {
 			return nil, err
 		}
 		if err := st.Provider().CreateModel(ctx, domain.Model{ID: util.NewID("model"), ProviderID: seedProvider.ID, Name: "mock-text", Capabilities: []string{"text"}, Metadata: map[string]any{"role": "plan", "priority": 1}, ContextLimit: 8192, Enabled: true}); err != nil {
+			return nil, err
+		}
+		if err := st.Provider().CreateModel(ctx, domain.Model{ID: util.NewID("model"), ProviderID: seedProvider.ID, Name: "mock-image-plan", Capabilities: []string{"image", "text"}, Metadata: map[string]any{"role": "plan_image", "priority": 1}, ContextLimit: 8192, Enabled: true}); err != nil {
+			return nil, err
+		}
+		if err := st.Provider().CreateModel(ctx, domain.Model{ID: util.NewID("model"), ProviderID: seedProvider.ID, Name: "mock-audio-plan", Capabilities: []string{"audio", "text"}, Metadata: map[string]any{"role": "plan_audio", "priority": 1}, ContextLimit: 8192, Enabled: true}); err != nil {
 			return nil, err
 		}
 		if err := st.Provider().CreateModel(ctx, domain.Model{ID: util.NewID("model"), ProviderID: seedProvider.ID, Name: "mock-text-emit", Capabilities: []string{"text"}, Metadata: map[string]any{"role": "emit", "priority": 1}, ContextLimit: 8192, Enabled: true}); err != nil {
@@ -89,6 +100,7 @@ func New(ctx context.Context) (*App, error) {
 		Playground: playSvc,
 		Events:     eventSvc,
 		Telemetry:  telemetrySvc,
+		Flow:       flowSvc,
 		Agent:      agentSvc,
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/example/a2ui-go-agent-platform/internal/infra/bootstrap"
@@ -43,6 +44,26 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("migration complete")
+	case "db:rollback":
+		cfg, err := db.LoadConfigFromEnv()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		steps := int64(1)
+		if len(args) >= 3 {
+			n, err := strconv.ParseInt(args[2], 10, 64)
+			if err != nil || n < 0 {
+				fmt.Fprintln(os.Stderr, "usage: db:rollback [steps>=0]")
+				os.Exit(1)
+			}
+			steps = n
+		}
+		if err := db.MigrateDown(ctx, cfg, "migrations", steps); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Printf("rollback complete (steps=%d)\n", steps)
 	case "db:backup":
 		fmt.Println("backup started")
 	case "db:restore":
@@ -120,6 +141,7 @@ func usage() {
 	fmt.Println("a2ui cli")
 	fmt.Println("  db:create")
 	fmt.Println("  db:migrate")
+	fmt.Println("  db:rollback [steps]")
 	fmt.Println("  db:backup")
 	fmt.Println("  db:restore <backup-id>")
 	fmt.Println("  data:export <workspace-id>")

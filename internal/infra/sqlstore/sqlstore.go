@@ -30,6 +30,7 @@ func (s *Store) Provider() store.ProviderRepository     { return s }
 func (s *Store) Theme() store.ThemeRepository           { return s }
 func (s *Store) Playground() store.PlaygroundRepository { return s }
 func (s *Store) Event() store.EventRepository           { return s }
+func (s *Store) Flow() store.FlowRepository             { return s }
 
 func (s *Store) CreateWorkspace(ctx context.Context, w domain.Workspace) error {
 	_, err := s.pool.Exec(ctx, `INSERT INTO workspaces (id,name,root_path,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)`, w.ID, w.Name, w.RootPath, w.CreatedAt, w.UpdatedAt)
@@ -168,6 +169,28 @@ func (s *Store) ListBySession(ctx context.Context, sessionID string) ([]domain.S
 			v.ParentVersionID = *parent
 		}
 		out = append(out, v)
+	}
+	return out, nil
+}
+
+func (s *Store) CreateVersionAsset(ctx context.Context, asset domain.SchemaVersionAsset) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO schema_version_assets (id,version_id,asset_type,asset_ref,metadata_json,created_at) VALUES ($1,$2,$3,$4,$5,$6)`, asset.ID, asset.VersionID, asset.AssetType, asset.AssetRef, asset.MetadataJSON, asset.CreatedAt)
+	return mapErr(err)
+}
+
+func (s *Store) ListVersionAssets(ctx context.Context, versionID string) ([]domain.SchemaVersionAsset, error) {
+	rows, err := s.pool.Query(ctx, `SELECT id,version_id,asset_type,asset_ref,metadata_json,created_at FROM schema_version_assets WHERE version_id=$1 ORDER BY created_at ASC`, versionID)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := []domain.SchemaVersionAsset{}
+	for rows.Next() {
+		var item domain.SchemaVersionAsset
+		if err := rows.Scan(&item.ID, &item.VersionID, &item.AssetType, &item.AssetRef, &item.MetadataJSON, &item.CreatedAt); err != nil {
+			return nil, mapErr(err)
+		}
+		out = append(out, item)
 	}
 	return out, nil
 }
@@ -386,6 +409,25 @@ func (s *Store) GetRun(ctx context.Context, id string) (domain.AgentRun, error) 
 	return run, nil
 }
 
+func (s *Store) ListRuns(ctx context.Context) ([]domain.AgentRun, error) {
+	rows, err := s.pool.Query(ctx, `SELECT id,session_id,request_text,status,started_at,ended_at FROM agent_runs ORDER BY started_at DESC`)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := []domain.AgentRun{}
+	for rows.Next() {
+		var run domain.AgentRun
+		var status string
+		if err := rows.Scan(&run.ID, &run.SessionID, &run.RequestText, &status, &run.StartedAt, &run.EndedAt); err != nil {
+			return nil, mapErr(err)
+		}
+		run.Status = domain.AgentRunStatus(status)
+		out = append(out, run)
+	}
+	return out, nil
+}
+
 func (s *Store) CreateEvent(ctx context.Context, e domain.AgentEvent) error {
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
@@ -410,6 +452,58 @@ func (s *Store) ListEventsByRun(ctx context.Context, runID string) ([]domain.Age
 		}
 		_ = json.Unmarshal([]byte(payload), &e.Payload)
 		out = append(out, e)
+	}
+	return out, nil
+}
+
+func (s *Store) CreateFlowTemplate(ctx context.Context, flow domain.FlowTemplate) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO flow_templates (id,name,status,created_at) VALUES ($1,$2,$3,$4)`, flow.ID, flow.Name, string(flow.Status), flow.CreatedAt)
+	return mapErr(err)
+}
+
+func (s *Store) ListFlowTemplates(ctx context.Context) ([]domain.FlowTemplate, error) {
+	rows, err := s.pool.Query(ctx, `SELECT id,name,status,created_at FROM flow_templates ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := []domain.FlowTemplate{}
+	for rows.Next() {
+		var item domain.FlowTemplate
+		var status string
+		if err := rows.Scan(&item.ID, &item.Name, &status, &item.CreatedAt); err != nil {
+			return nil, mapErr(err)
+		}
+		item.Status = domain.FlowTemplateStatus(status)
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func (s *Store) CreateFlowTemplateVersion(ctx context.Context, version domain.FlowTemplateVersion) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO flow_template_versions (id,template_id,version,definition_json,created_at) VALUES ($1,$2,$3,$4,$5)`, version.ID, version.TemplateID, version.Version, version.DefinitionJSON, version.CreatedAt)
+	return mapErr(err)
+}
+
+func (s *Store) GetFlowTemplateVersion(ctx context.Context, templateID, version string) (domain.FlowTemplateVersion, error) {
+	var out domain.FlowTemplateVersion
+	err := s.pool.QueryRow(ctx, `SELECT id,template_id,version,definition_json,created_at FROM flow_template_versions WHERE template_id=$1 AND version=$2`, templateID, version).Scan(&out.ID, &out.TemplateID, &out.Version, &out.DefinitionJSON, &out.CreatedAt)
+	if err != nil {
+		return domain.FlowTemplateVersion{}, mapErr(err)
+	}
+	return out, nil
+}
+
+func (s *Store) BindSessionFlow(ctx context.Context, binding domain.SessionFlowBinding) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO session_flow_bindings (session_id,template_id,template_version,bound_at) VALUES ($1,$2,$3,$4) ON CONFLICT (session_id) DO UPDATE SET template_id=$2,template_version=$3,bound_at=$4`, binding.SessionID, binding.TemplateID, binding.TemplateVersion, binding.BoundAt)
+	return mapErr(err)
+}
+
+func (s *Store) GetSessionFlowBinding(ctx context.Context, sessionID string) (domain.SessionFlowBinding, error) {
+	var out domain.SessionFlowBinding
+	err := s.pool.QueryRow(ctx, `SELECT session_id,template_id,template_version,bound_at FROM session_flow_bindings WHERE session_id=$1`, sessionID).Scan(&out.SessionID, &out.TemplateID, &out.TemplateVersion, &out.BoundAt)
+	if err != nil {
+		return domain.SessionFlowBinding{}, mapErr(err)
 	}
 	return out, nil
 }
@@ -488,3 +582,4 @@ var _ store.ProviderRepository = (*Store)(nil)
 var _ store.ThemeRepository = (*Store)(nil)
 var _ store.PlaygroundRepository = (*Store)(nil)
 var _ store.EventRepository = (*Store)(nil)
+var _ store.FlowRepository = (*Store)(nil)

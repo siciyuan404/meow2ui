@@ -24,6 +24,8 @@ type VersionRepository interface {
 	GetVersion(context.Context, string) (domain.SchemaVersion, error)
 	GetLatestBySession(context.Context, string) (domain.SchemaVersion, error)
 	ListBySession(context.Context, string) ([]domain.SchemaVersion, error)
+	CreateVersionAsset(context.Context, domain.SchemaVersionAsset) error
+	ListVersionAssets(context.Context, string) ([]domain.SchemaVersionAsset, error)
 }
 
 type ProviderRepository interface {
@@ -51,8 +53,18 @@ type EventRepository interface {
 	CreateRun(context.Context, domain.AgentRun) error
 	UpdateRun(context.Context, domain.AgentRun) error
 	GetRun(context.Context, string) (domain.AgentRun, error)
+	ListRuns(context.Context) ([]domain.AgentRun, error)
 	CreateEvent(context.Context, domain.AgentEvent) error
 	ListEventsByRun(context.Context, string) ([]domain.AgentEvent, error)
+}
+
+type FlowRepository interface {
+	CreateFlowTemplate(context.Context, domain.FlowTemplate) error
+	ListFlowTemplates(context.Context) ([]domain.FlowTemplate, error)
+	CreateFlowTemplateVersion(context.Context, domain.FlowTemplateVersion) error
+	GetFlowTemplateVersion(context.Context, string, string) (domain.FlowTemplateVersion, error)
+	BindSessionFlow(context.Context, domain.SessionFlowBinding) error
+	GetSessionFlowBinding(context.Context, string) (domain.SessionFlowBinding, error)
 }
 
 type Repositories interface {
@@ -63,4 +75,5 @@ type Repositories interface {
 	Theme() ThemeRepository
 	Playground() PlaygroundRepository
 	Event() EventRepository
+	Flow() FlowRepository
 }

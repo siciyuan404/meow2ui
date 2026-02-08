@@ -28,6 +28,18 @@ go run ./cmd/server
 - `GET /readyz`
 - `GET /version`
 
+## Debugger APIs
+
+- `GET /api/v1/debug/runs`
+- `GET /api/v1/debug/runs/{runId}`
+- `GET /api/v1/debug/runs/{runId}/cost`
+
+## Flow Orchestration APIs
+
+- `GET /api/v1/flows`
+- `POST /api/v1/flows`
+- `POST /api/v1/flows/bind-session`
+
 ## Common issues
 
 - `config invalid`: 检查 `STORE_DRIVER` 和 `PG_*` 环境变量

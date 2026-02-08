@@ -2,6 +2,19 @@ package domain
 
 import "time"
 
+type MediaType string
+
+const (
+	MediaTypeImage MediaType = "image"
+	MediaTypeAudio MediaType = "audio"
+)
+
+type MultimodalInput struct {
+	Type     MediaType      `json:"type"`
+	Ref      string         `json:"ref"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
 type Workspace struct {
 	ID        string
 	Name      string
@@ -56,6 +69,15 @@ type SchemaVersion struct {
 	Summary         string
 	ThemeSnapshotID string
 	CreatedAt       time.Time
+}
+
+type SchemaVersionAsset struct {
+	ID           string
+	VersionID    string
+	AssetType    string
+	AssetRef     string
+	MetadataJSON string
+	CreatedAt    time.Time
 }
 
 type Provider struct {
@@ -135,6 +157,35 @@ type AgentEvent struct {
 	TokenIn   int
 	TokenOut  int
 	CreatedAt time.Time
+}
+
+type FlowTemplateStatus string
+
+const (
+	FlowTemplateDraft     FlowTemplateStatus = "draft"
+	FlowTemplatePublished FlowTemplateStatus = "published"
+)
+
+type FlowTemplate struct {
+	ID        string
+	Name      string
+	Status    FlowTemplateStatus
+	CreatedAt time.Time
+}
+
+type FlowTemplateVersion struct {
+	ID             string
+	TemplateID     string
+	Version        string
+	DefinitionJSON string
+	CreatedAt      time.Time
+}
+
+type SessionFlowBinding struct {
+	SessionID       string
+	TemplateID      string
+	TemplateVersion string
+	BoundAt         time.Time
 }
 
 type PatchOperation struct {

@@ -46,6 +46,10 @@ func (s *Service) CompleteRun(ctx context.Context, runID string, success bool) e
 	return s.repo.UpdateRun(ctx, run)
 }
 
+func (s *Service) GetRun(ctx context.Context, runID string) (domain.AgentRun, error) {
+	return s.repo.GetRun(ctx, runID)
+}
+
 func (s *Service) Emit(ctx context.Context, runID, step string, payload map[string]any, latencyMS, tokenIn, tokenOut int) error {
 	e := domain.AgentEvent{
 		ID:        util.NewID("evt"),
@@ -58,4 +62,12 @@ func (s *Service) Emit(ctx context.Context, runID, step string, payload map[stri
 		CreatedAt: time.Now(),
 	}
 	return s.repo.CreateEvent(ctx, e)
+}
+
+func (s *Service) ListRuns(ctx context.Context) ([]domain.AgentRun, error) {
+	return s.repo.ListRuns(ctx)
+}
+
+func (s *Service) ListEventsByRun(ctx context.Context, runID string) ([]domain.AgentEvent, error) {
+	return s.repo.ListEventsByRun(ctx, runID)
 }

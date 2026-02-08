@@ -11,9 +11,12 @@ import (
 	"github.com/example/a2ui-go-agent-platform/pkg/a2ui"
 	"github.com/example/a2ui-go-agent-platform/pkg/domain"
 	"github.com/example/a2ui-go-agent-platform/pkg/events"
+	"github.com/example/a2ui-go-agent-platform/pkg/flow"
+	flowruntime "github.com/example/a2ui-go-agent-platform/pkg/flow/runtime"
 	"github.com/example/a2ui-go-agent-platform/pkg/guardrail"
 	"github.com/example/a2ui-go-agent-platform/pkg/playground/retrieval"
 	"github.com/example/a2ui-go-agent-platform/pkg/provider"
+	"github.com/example/a2ui-go-agent-platform/pkg/security/policy"
 	"github.com/example/a2ui-go-agent-platform/pkg/session"
 	"github.com/example/a2ui-go-agent-platform/pkg/store"
 	"github.com/example/a2ui-go-agent-platform/pkg/telemetry"
@@ -29,6 +32,9 @@ type Service struct {
 	telemetry *telemetry.Service
 	versions  store.VersionRepository
 	retriever retrieval.Retriever
+	flows     *flow.Service
+	runtime   *flowruntime.Service
+	policy    *policy.Engine
 }
 
 func NewService(
@@ -40,6 +46,8 @@ func NewService(
 	telemetrySvc *telemetry.Service,
 	versions store.VersionRepository,
 	retriever retrieval.Retriever,
+	flowSvc *flow.Service,
+	flowRuntime *flowruntime.Service,
 ) *Service {
 	return &Service{
 		provider:  providerSvc,
@@ -50,6 +58,9 @@ func NewService(
 		telemetry: telemetrySvc,
 		versions:  versions,
 		retriever: retriever,
+		flows:     flowSvc,
+		runtime:   flowRuntime,
+		policy:    policy.NewEngine(),
 	}
 }
 
@@ -57,6 +68,7 @@ type RunInput struct {
 	SessionID string
 	Prompt    string
 	OnlyArea  string
+	Media     []domain.MultimodalInput
 }
 
 type RunOutput struct {
@@ -86,9 +98,18 @@ func (s *Service) Run(ctx context.Context, in RunInput) (RunOutput, error) {
 		s.telemetry.RecordRun(complete, time.Since(started).Milliseconds())
 	}()
 
+	for _, media := range in.Media {
+		d := s.policy.ValidateMediaRef(media.Ref, []string{"githubusercontent.com", "example-cdn.com"})
+		if !d.Allowed {
+			_ = s.events.Emit(ctx, run.ID, "media_blocked", map[string]any{"ref": media.Ref, "reason": d.Reason, "rule": d.RuleID}, 0, 0, 0)
+			return RunOutput{}, fmt.Errorf("media blocked: %s", d.Reason)
+		}
+	}
+
 	bundle, err := s.session.BuildContext(ctx, in.SessionID, map[string]any{
 		"prompt":    in.Prompt,
 		"only_area": in.OnlyArea,
+		"media":     in.Media,
 	})
 	if err != nil {
 		_ = s.events.Emit(ctx, run.ID, "init_failed", map[string]any{"error": err.Error()}, 0, 0, 0)
@@ -122,16 +143,51 @@ func (s *Service) Run(ctx context.Context, in RunInput) (RunOutput, error) {
 		_ = s.events.Emit(ctx, run.ID, "retrieval_skipped", map[string]any{"reason": "disabled"}, 0, 0, 0)
 	}
 
-	planResp, err := s.provider.Generate(ctx, provider.TaskPlan, provider.GenerateRequest{
-		SystemPrompt: "generate execution plan",
-		UserPrompt:   in.Prompt,
-		Context:      map[string]any{"expect": "plan", "bundle": bundle},
-	})
+	def, _, err := s.flows.ResolveDefinition(ctx, in.SessionID)
 	if err != nil {
-		_ = s.events.Emit(ctx, run.ID, "plan_failed", map[string]any{"error": err.Error()}, 0, 0, 0)
+		_ = s.events.Emit(ctx, run.ID, "flow_resolve_failed", map[string]any{"error": err.Error()}, 0, 0, 0)
 		return RunOutput{}, err
 	}
-	_ = s.events.Emit(ctx, run.ID, "plan", map[string]any{"text": planResp.Text}, 10, 100, planResp.Tokens)
+
+	planTask := provider.TaskPlan
+	if len(in.Media) > 0 {
+		switch in.Media[0].Type {
+		case domain.MediaTypeImage:
+			planTask = provider.TaskPlanImage
+		case domain.MediaTypeAudio:
+			planTask = provider.TaskPlanAudio
+		}
+	}
+
+	flowResult, err := s.runtime.Execute(ctx, def, provider.GenerateRequest{
+		SystemPrompt: "generate execution plan",
+		UserPrompt:   in.Prompt,
+		Context:      map[string]any{"expect": "plan", "bundle": bundle, "plan_task": string(planTask)},
+	})
+	if err != nil {
+		if len(in.Media) > 0 && planTask != provider.TaskPlan {
+			flowResult, err = s.runtime.Execute(ctx, def, provider.GenerateRequest{
+				SystemPrompt: "generate execution plan",
+				UserPrompt:   in.Prompt,
+				Context:      map[string]any{"expect": "plan", "bundle": bundle, "plan_task": string(provider.TaskPlan), "degraded_from": string(planTask)},
+			})
+		}
+	}
+	if err != nil {
+		_ = s.events.Emit(ctx, run.ID, "flow_failed", map[string]any{"error": err.Error()}, 0, 0, 0)
+		return RunOutput{}, err
+	}
+	if err := flowruntime.RequireSuccess(flowResult); err != nil {
+		_ = s.events.Emit(ctx, run.ID, "flow_failed", map[string]any{"error": err.Error()}, 0, 0, 0)
+		return RunOutput{}, err
+	}
+	for _, node := range flowResult.Nodes {
+		payload := map[string]any{"status": node.Status, "output": node.Output}
+		if node.Error != "" {
+			payload["error"] = node.Error
+		}
+		_ = s.events.Emit(ctx, run.ID, "flow."+node.Step, payload, int(node.LatencyMS), 0, node.Tokens)
+	}
 
 	latest, err := s.session.GetLatestVersion(ctx, in.SessionID)
 	if err != nil {
@@ -156,17 +212,6 @@ func (s *Service) Run(ctx context.Context, in RunInput) (RunOutput, error) {
 			},
 		},
 	}
-	b, _ := json.Marshal(patch)
-	emitResp, err := s.provider.Generate(ctx, provider.TaskEmit, provider.GenerateRequest{
-		SystemPrompt: "generate ui patch",
-		UserPrompt:   string(b),
-		Context:      map[string]any{"bundle": bundle},
-	})
-	if err != nil {
-		return RunOutput{}, err
-	}
-	_ = s.events.Emit(ctx, run.ID, "emit", map[string]any{"text": emitResp.Text}, 12, 120, emitResp.Tokens)
-
 	next, err := s.a2ui.ApplyPatch(baseSchema, patch)
 	if err != nil {
 		return RunOutput{}, err
@@ -212,6 +257,17 @@ func (s *Service) Run(ctx context.Context, in RunInput) (RunOutput, error) {
 	}
 	if err := s.versions.CreateVersion(ctx, newVersion); err != nil {
 		return RunOutput{}, err
+	}
+	for _, media := range in.Media {
+		metadataJSON, _ := json.Marshal(media.Metadata)
+		_ = s.versions.CreateVersionAsset(ctx, domain.SchemaVersionAsset{
+			ID:           util.NewID("asset"),
+			VersionID:    newVersion.ID,
+			AssetType:    string(media.Type),
+			AssetRef:     media.Ref,
+			MetadataJSON: string(metadataJSON),
+			CreatedAt:    time.Now(),
+		})
 	}
 	_ = s.events.Emit(ctx, run.ID, "apply", map[string]any{"version_id": newVersion.ID}, 5, 0, 0)
 
