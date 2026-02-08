@@ -3,15 +3,15 @@
 ## Progress Summary
 
 - Total Tasks: 7
-- Completed: 0
+- Completed: 7
 - In Progress: 0
-- Pending: 7
+- Pending: 0
 
 ---
 
 ## TASK-P4-001: 准备发布摘要并提交 Product 审阅
 
-**Status:** pending
+**Status:** completed
 
 **Type:** docs
 
@@ -37,7 +37,7 @@
 
 ## TASK-P4-002: 获取 Product sign-off 并更新 release-gate
 
-**Status:** pending
+**Status:** completed
 
 **Type:** docs
 
@@ -62,7 +62,7 @@
 
 ## TASK-P4-003: 归档发布产物完整性检查
 
-**Status:** pending
+**Status:** completed
 
 **Type:** test
 
@@ -89,7 +89,7 @@
 
 ## TASK-P4-004: 生成 Changelog
 
-**Status:** pending
+**Status:** completed
 
 **Type:** docs
 
@@ -117,7 +117,7 @@
 
 ## TASK-P4-005: 创建 git tag 和 GitHub Release
 
-**Status:** pending
+**Status:** completed
 
 **Type:** implementation
 
@@ -143,7 +143,7 @@
 
 ## TASK-P4-006: 创建 v1.1 规划文档
 
-**Status:** pending
+**Status:** completed
 
 **Type:** docs
 
@@ -170,7 +170,7 @@
 
 ## TASK-P4-007: 关闭 v1 范围 GitHub Issue
 
-**Status:** pending
+**Status:** completed
 
 **Type:** implementation
 

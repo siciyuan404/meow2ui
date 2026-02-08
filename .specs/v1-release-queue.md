@@ -7,10 +7,10 @@
 
 ## Current Snapshot
 
-- Completed Phases: `Phase 1`, `Phase 2`, `Phase 3`
+- Completed Phases: `Phase 1`, `Phase 2`, `Phase 3`, `Phase 4`
 - In Progress Phases: (none)
-- Pending Phases: `Phase 4`
-- Total Pending Tasks: `7`
+- Pending Phases: (none)
+- Total Pending Tasks: `0`
 
 ## Queue Items
 
@@ -19,7 +19,7 @@
 | PHASE-1 | 队列状态一致性修复 | `.specs/phase1-queue-consistency-fix/tasks.md` | high | completed | strict | - |
 | PHASE-2 | V1 发布验证 | `.specs/phase2-v1-release-verification/tasks.md` | high | completed | strict | PHASE-1 |
 | PHASE-3 | 文档与测试补全 | `.specs/phase3-docs-and-test-coverage/tasks.md` | medium | completed | strict | PHASE-1 |
-| PHASE-4 | 收尾与 V1 正式发布 | `.specs/phase4-v1-final-release/tasks.md` | high | pending | strict | PHASE-2, PHASE-3 |
+| PHASE-4 | 收尾与 V1 正式发布 | `.specs/phase4-v1-final-release/tasks.md` | high | completed | strict | PHASE-2, PHASE-3 |
 
 ## Task Summary
 
@@ -28,8 +28,8 @@
 | PHASE-1 | 4 | 4 | 0 | 队列文件修复 + 校验脚本 |
 | PHASE-2 | 8 | 8 | 0 | release-checklist 30 项勾选 + migration-report + regression-matrix |
 | PHASE-3 | 7 | 7 | 0 | OpenAPI 规范 + 测试覆盖率 40%+ + CLI 文档 |
-| PHASE-4 | 7 | 0 | 7 | Product sign-off + git tag v1.0.0 + CHANGELOG + v1.1 roadmap |
-| **Total** | **26** | **19** | **7** | |
+| PHASE-4 | 7 | 7 | 0 | Product sign-off + git tag v1.0.0 + CHANGELOG + v1.1 roadmap |
+| **Total** | **26** | **26** | **0** | |
 
 ## Active Queue Tasks
 
@@ -67,6 +67,18 @@ Progress: 8/8 completed
 
 Progress: 7/7 completed
 
+### PHASE-4 -> `.specs/phase4-v1-final-release/tasks.md` (completed)
+
+- ~~TASK-P4-001~~ completed — 发布摘要 release-summary-v1.md 已创建
+- ~~TASK-P4-002~~ completed — Product sign-off done, Decision: released
+- ~~TASK-P4-003~~ completed — 5 个发布产物文件均存在且非空
+- ~~TASK-P4-004~~ completed — CHANGELOG.md 已生成（Features/Infra/Security/Enterprise/Known Limitations）
+- ~~TASK-P4-005~~ completed — git tag v1.0.0 + GitHub Release 已创建
+- ~~TASK-P4-006~~ completed — docs/roadmap-v1.1.md 已创建（15 项延后工作）
+- ~~TASK-P4-007~~ completed — Issue #11 已关闭
+
+Progress: 7/7 completed
+
 ## Dependency Graph
 
 ```
@@ -77,8 +89,7 @@ PHASE-1 (队列修复)
   +---> PHASE-3 (文档与测试) ---+---> PHASE-4 (正式发布)
 ```
 
-- PHASE-2 和 PHASE-3 已在 PHASE-1 完成后并行执行完毕
-- PHASE-4 依赖已满足，可以开始执行
+All phases completed.
 
 ## Execution Rules
 
@@ -87,13 +98,13 @@ PHASE-1 (队列修复)
 - 每完成一个任务，立即更新对应 `tasks.md`。
 - 每个队列项完成后，更新本文件的 `Status` 为 `completed` 并更新 Current Snapshot。
 
-## Start Command (Recommended)
+## Completion
 
-- PHASE-1、PHASE-2、PHASE-3 已全部完成。
-- PHASE-4 依赖已满足，可从 `TASK-P4-001` 开始执行。
+所有 4 个 Phase、26 个任务已全部完成。v1.0.0 已正式发布。
 
 ## Relation to Previous Queues
 
 - `task-queue.md`：QUEUE-001 ~ QUEUE-018 全部 completed（基础功能开发阶段）
 - `issue-priority-queue.md`：QUEUE-101 ~ QUEUE-303 全部 completed（Issue 驱动功能阶段）
-- 本文件：PHASE-1 ~ PHASE-3 completed，PHASE-4 pending（v1 发布收尾阶段）
+- 本文件：PHASE-1 ~ PHASE-4 全部 completed（v1 发布收尾阶段）
+- 下一阶段规划见 `docs/roadmap-v1.1.md`
